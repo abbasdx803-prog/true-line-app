@@ -2611,7 +2611,7 @@
         document.getElementById('introOverlay').style.display = 'none';
         document.body.classList.remove('intro-playing');
         showScreen('screen-login');  // ⭐ أضفت هاي الـ line
-      }, 2500);
+      }, 4000);  // ⭐ غيّرت من 2500 إلى 4000
     }
 
 // ⭐ دالة الدخول كضيف — Global Scope (متاحة دائماً)
