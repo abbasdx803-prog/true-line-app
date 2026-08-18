@@ -439,12 +439,16 @@
         // إرسال OTP
         const otpResult = await sendOTP(email);
 
+        // ⭐ لا نوقف التسجيل عند فشل البريد — ننتقل لشاشة التحقق
+        // حيث يوجد زر "تخطي والمتابعة الآن" الذي ينشئ الحساب مباشرة.
         if (!otpResult.success) {
-          throw new Error('فشل في إرسال رمز التحقق: ' + otpResult.error);
+          console.warn('⚠️ فشل إرسال البريد — المتابعة لشاشة التحقق:', otpResult.error);
+          alert(currentLanguage === 'ar'
+            ? '⚠️ تعذّر إرسال رمز التحقق حالياً.\n\nاضغط "⏭️ تخطي والمتابعة الآن" في الشاشة التالية لإنشاء حسابك.'
+            : '⚠️ Could not send the verification code.\n\nUse "Skip and continue" on the next screen to create your account.');
+        } else {
+          alert(currentLanguage === 'ar' ? '📧 تم إرسال رمز التحقق إلى بريدك الإلكتروني' : '📧 Verification code sent to your email');
         }
-
-        // عرض رسالة النجاح
-        alert(currentLanguage === 'ar' ? '📧 تم إرسال رمز التحقق إلى بريدك الإلكتروني' : '📧 Verification code sent to your email');
 
         document.getElementById('regEmail').value = '';
         document.getElementById('regPassword').value = '';
