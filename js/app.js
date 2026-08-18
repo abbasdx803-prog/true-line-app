@@ -2595,6 +2595,7 @@
 
     // إخفاء الـ Topbar في البداية (شاشة الـ Intro)
     document.getElementById('topbar').style.display = 'none';
+    document.getElementById('screen-benefits').style.display = 'none';  // ⭐ أضفت هاي الـ line
 
     if (currentUser) {
       updateUserDisplay();
