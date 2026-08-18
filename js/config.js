@@ -840,10 +840,25 @@
       }
 
       const otpRecord = otpRecords[0];
+      
+      // ⭐ تصحيح: فحص صلاحية الرمز بشكل صحيح
+      console.log('🔍 OTP Record:', otpRecord);
+      console.log('⏰ expires_at من database:', otpRecord.expires_at);
+      
+      if (!otpRecord.expires_at) {
+        console.warn('⚠️ expires_at ناقصة — الرمز قديم بدون صلاحية');
+        throw new Error('انتهت صلاحية الرمز - طلب رمز جديد');
+      }
 
-      // التحقق من انتهاء صلاحية الرمز
       const expiresAt = new Date(otpRecord.expires_at);
-      if (new Date() > expiresAt) {
+      const now = new Date();
+      
+      console.log('📅 الآن:', now.toISOString());
+      console.log('📅 انتهاء الصلاحية:', expiresAt.toISOString());
+      console.log('⏱️ الفارق (ثواني):', (expiresAt - now) / 1000);
+      
+      if (now > expiresAt) {
+        console.error('❌ الرمز انتهت صلاحيته!');
         throw new Error('انتهت صلاحية الرمز - طلب رمز جديد');
       }
 
