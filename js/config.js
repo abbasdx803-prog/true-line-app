@@ -140,7 +140,9 @@
 
       if (!emailResponse.ok) {
         const errorData = await emailResponse.json();
-        throw new Error(`فشل إرسال البريد: ${errorData.error || 'خطأ غير معروف'}`);
+        console.error('🔍 تفاصيل الخطأ الكاملة من MailerSend:', errorData);
+        console.error('🔍 details:', errorData.details);
+        throw new Error(`فشل إرسال البريد: ${errorData.error || 'خطأ غير معروف'} — ${errorData.details || ''}`);
       }
 
       const emailData = await emailResponse.json();
