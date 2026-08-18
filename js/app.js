@@ -298,6 +298,13 @@
 
     // دالة معالجة رفع الفيديو
     async function handleUploadVideo() {
+      // ⭐ منع الضيوف من الرفع
+      if (localStorage.getItem('isGuest') === 'true') {
+        alert('❌ هذا الخيار متاح فقط للمسجلين\nالرجاء تسجيل الدخول أولاً');
+        showScreen('screen-login');
+        return;
+      }
+
       const fileInput = document.getElementById('videoFile');
       const videoTitle = document.getElementById('videoTitle').value;
       const videoDesc = document.getElementById('videoDesc').value;
@@ -455,6 +462,20 @@
         console.error('Registration Error:', error);
         alert(currentLanguage === 'ar' ? 'خطأ: ' + error.message : 'Error: ' + error.message);
       }
+    }
+
+    // ⭐ دالة الدخول كضيف — بدون تسجيل أو بيانات
+    function handleGuestLogin() {
+      localStorage.setItem('isGuest', 'true');
+      localStorage.setItem('currentUser', 'ضيف');
+      localStorage.removeItem('userId');
+      localStorage.removeItem('userProfile_guest');
+      
+      alert('🌐 أهلاً بك كضيف!\nتستطيع المشاهدة فقط');
+      
+      document.body.classList.add('guest-mode');
+      updateUserDisplay();
+      showScreen('screen-benefits');
     }
 
     async function handleLogin() {
@@ -1696,6 +1717,13 @@
     }
 
     async function handleCompleteProfile() {
+      // ⭐ منع الضيوف من إكمال البروفايل
+      if (localStorage.getItem('isGuest') === 'true') {
+        alert('❌ هذا الخيار متاح فقط للمسجلين\nالرجاء تسجيل الدخول أولاً');
+        showScreen('screen-login');
+        return;
+      }
+
       const fullName = document.getElementById('completeName').value;
       const company = document.getElementById('completeCompany').value;
       const phone = document.getElementById('completePhone').value;

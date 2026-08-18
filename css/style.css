@@ -2456,3 +2456,30 @@
       transform: translate(-50%, -50%) scale(0.8);
     }
   }
+
+  /* ⭐ أنماط الوضع الضيف — إخفاء الخيارات المقيدة */
+  .guest-mode #settingsBtn,
+  .guest-mode #profileBtn,
+  .guest-mode #packageBtn,
+  .guest-mode .upload-section,
+  .guest-mode #screen-settings,
+  .guest-mode #screen-complete-profile,
+  .guest-mode [data-guest-hidden] {
+    display: none !important;
+  }
+
+  /* رسالة ترحيب الضيف */
+  .guest-mode::before {
+    content: '🌐 أنت بصفة ضيف — مشاهدة فقط';
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    background: rgba(0, 212, 255, 0.1);
+    border: 1px solid rgba(0, 212, 255, 0.3);
+    color: #00d4ff;
+    padding: 10px 15px;
+    border-radius: 8px;
+    font-size: 12px;
+    z-index: 999;
+    pointer-events: none;
+  }
