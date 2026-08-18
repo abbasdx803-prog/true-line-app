@@ -125,7 +125,7 @@ async function verifyOTP(email, code) {
   try {
     console.log('🔍 جاري التحقق من OTP...');
     
-    // ✅ البحث عن أحدث OTP بـ supabaseClient
+    // ✅ البحث عن أحدث OTP بـ supabaseClient (ليس supabaseCall)
     const { data: otpRecords, error: searchError } = await supabaseClient
       .from('otp')
       .select('*')
