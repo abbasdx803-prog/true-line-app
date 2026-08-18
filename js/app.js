@@ -355,7 +355,7 @@
 
     function showScreen(id) {
       // Screens that don't require login and don't show topbar
-      const publicScreens = ['screen-intro', 'screen-register', 'screen-login', 'screen-reset-password', 'screen-set-new-password', 'screen-verify-email', 'screen-details', 'screen-confirm', 'screen-complete-profile', 'screen-tour'];
+      const publicScreens = ['screen-intro', 'screen-register', 'screen-login', 'screen-reset-password', 'screen-verify-email', 'screen-details', 'screen-confirm', 'screen-complete-profile', 'screen-tour'];
 
       // Check if user is logged in
       const isLoggedIn = localStorage.getItem('currentUser') !== null;
@@ -421,23 +421,31 @@
       }
 
       try {
-        // ⭐ إنشاء الحساب عبر Supabase Auth — التشفير (hashing) والتحقق من
-        // تكرار البريد يصيران بالكامل على سيرفر Supabase، وليس يدوياً هنا.
-        const signUpResult = await signUpUser(email, password);
+        // التحقق من أن البريد غير مسجل مسبقاً
+        const { data: existingUsers, error: checkError } = await supabaseCall('GET', 'users', null, {
+          email: `eq.${email}`
+        });
 
-        if (!signUpResult.success) {
-          throw new Error(signUpResult.error);
+        if (existingUsers && existingUsers.length > 0) {
+          throw new Error(currentLanguage === 'ar' ? 'هذا البريد مسجل مسبقاً' : 'This email is already registered');
         }
 
-        // نحتفظ بالبريد مؤقتاً فقط لعرض شاشة "التحقق" — بدون أي باسورد
+        // ⭐ تغيير: حفظ البيانات مؤقتاً فقط - بدون إنشاء في Supabase الآن
+        // سيتم الإنشاء فقط بعد نجاح التحقق من OTP
         localStorage.setItem('tempEmail', email);
+        localStorage.setItem('tempPassword', password);
+        console.log('📝 تم حفظ البيانات مؤقتاً - في انتظار التحقق من البريد');
 
-        // إرسال رمز OTP التعريفي الخاص بنا (للتجربة/البراند) بالتوازي
-        // مع بريد التأكيد الذي يرسله Supabase تلقائياً
+        // إرسال OTP
         const otpResult = await sendOTP(email);
 
+        // ⭐ لا نوقف التسجيل عند فشل البريد — ننتقل لشاشة التحقق
+        // حيث يوجد زر "تخطي والمتابعة الآن" الذي ينشئ الحساب مباشرة.
         if (!otpResult.success) {
-          console.warn('⚠️ فشل إرسال بريد OTP الإضافي:', otpResult.error);
+          console.warn('⚠️ فشل إرسال البريد — المتابعة لشاشة التحقق:', otpResult.error);
+          alert(currentLanguage === 'ar'
+            ? '⚠️ تعذّر إرسال رمز التحقق حالياً.\n\nاضغط "⏭️ تخطي والمتابعة الآن" في الشاشة التالية لإنشاء حسابك.'
+            : '⚠️ Could not send the verification code.\n\nUse "Skip and continue" on the next screen to create your account.');
         } else {
           alert(currentLanguage === 'ar' ? '📧 تم إرسال رمز التحقق إلى بريدك الإلكتروني' : '📧 Verification code sent to your email');
         }
@@ -468,19 +476,33 @@
       }
 
       try {
-        // ⭐ التحقق من كلمة المرور يصير بالكامل على سيرفر Supabase
-        // (مقارنة الهاش)، وليس بمقارنة نص صريح هنا بالفرونت إند.
-        const signInResult = await signInUser(email, password);
+        // التحقق من بيانات المستخدم من Supabase
+        const { data: users, error: fetchError } = await supabaseCall('GET', 'users', null, {
+          email: `eq.${email}`
+        });
 
-        if (!signInResult.success) {
-          console.error('❌ خطأ تسجيل الدخول:', signInResult.error);
+        console.log('🔍 البحث عن المستخدم:', email);
+        console.log('📊 النتائج:', users);
+        console.log('❌ الخطأ:', fetchError);
+
+        if (fetchError) {
+          console.error('❌ خطأ في البحث:', fetchError);
+          throw new Error(currentLanguage === 'ar' ? 'خطأ في الاتصال بقاعدة البيانات' : 'Database connection error');
+        }
+
+        if (!users || users.length === 0) {
+          console.error('❌ المستخدم غير موجود في قاعدة البيانات');
+          throw new Error(currentLanguage === 'ar' ? 'البريد الإلكتروني غير مسجل' : 'Email not registered');
+        }
+
+        const userData = users[0];
+
+        // التحقق من كلمة المرور
+        if (userData.password !== password) {
           throw new Error(currentLanguage === 'ar' ? 'البريد الإلكتروني أو كلمة المرور غير صحيحة' : 'Invalid email or password');
         }
 
-        const userData = signInResult.user;
-
-        // حفظ بيانات المستخدم محلياً (للعرض بالواجهة فقط — الجلسة الحقيقية
-        // محفوظة ومُدارة تلقائياً من supabase-js)
+        // حفظ بيانات المستخدم محلياً
         localStorage.setItem('currentUser', email);
         localStorage.setItem('userId', userData.id);
 
@@ -528,47 +550,13 @@
       }
     }
 
-    // ⭐ هذه الدالة صارت خطوة 1 من خطوتين: نرسل رابط استرجاع رسمي من
-    // Supabase للبريد المُدخل، بدل ما نسمح بتغيير أي باسورد فوراً بدون
-    // إثبات إنه صاحب البريد هو نفسه اللي بيضغط الزر (ثغرة كانت موجودة سابقاً).
     async function handleResetPassword() {
       const email = document.getElementById('resetEmail').value.trim();
+      const newPassword = document.getElementById('resetPassword').value;
+      const confirmPassword = document.getElementById('resetPasswordConfirm').value;
       const msgDiv = document.getElementById('resetMsg');
 
-      if (!email) {
-        msgDiv.innerHTML = '<div style="background: #f8d7da; color: #721c24; padding: 12px; border-radius: 6px; border: 1px solid #f5c6cb;">يرجى إدخال البريد الإلكتروني</div>';
-        return;
-      }
-
-      try {
-        const result = await requestPasswordReset(email);
-
-        if (!result.success) throw new Error(result.error);
-
-        msgDiv.innerHTML = '<div style="background: #d4edda; color: #155724; padding: 12px; border-radius: 6px; border: 1px solid #c3e6cb;">✅ تم إرسال رابط إعادة تعيين كلمة المرور إلى بريدك — افتحه لإكمال العملية</div>';
-
-        document.getElementById('resetEmail').value = '';
-
-        setTimeout(() => {
-          msgDiv.innerHTML = '';
-          showScreen('screen-login');
-        }, 2500);
-
-      } catch (error) {
-        console.error('Reset Password Error:', error);
-        msgDiv.innerHTML = '<div style="background: #f8d7da; color: #721c24; padding: 12px; border-radius: 6px; border: 1px solid #f5c6cb;">خطأ: ' + error.message + '</div>';
-      }
-    }
-
-    // ⭐ خطوة 2: تُستدعى من شاشة تُفتح تلقائياً بعد ضغط المستخدم على رابط
-    // الاسترجاع بالإيميل (Supabase بيرجّعه للموقع بجلسة recovery صالحة).
-    // لازم تربطها بحقل باسورد جديد + زر بشاشة منفصلة (screen-set-new-password).
-    async function handleSetNewPassword() {
-      const newPassword = document.getElementById('newPasswordAfterReset').value;
-      const confirmPassword = document.getElementById('newPasswordConfirmAfterReset').value;
-      const msgDiv = document.getElementById('setNewPasswordMsg');
-
-      if (!newPassword || !confirmPassword) {
+      if (!email || !newPassword || !confirmPassword) {
         msgDiv.innerHTML = '<div style="background: #f8d7da; color: #721c24; padding: 12px; border-radius: 6px; border: 1px solid #f5c6cb;">يرجى ملء جميع الحقول</div>';
         return;
       }
@@ -583,21 +571,51 @@
         return;
       }
 
-      const result = await updateUserPassword(newPassword);
+      try {
+        // البحث عن المستخدم في Supabase
+        const { data: users, error: fetchError } = await supabaseCall('GET', 'users', null, {
+          email: `eq.${email}`
+        });
 
-      if (!result.success) {
-        msgDiv.innerHTML = '<div style="background: #f8d7da; color: #721c24; padding: 12px; border-radius: 6px; border: 1px solid #f5c6cb;">خطأ: ' + result.error + '</div>';
-        return;
+        if (fetchError || !users || users.length === 0) {
+          msgDiv.innerHTML = '<div style="background: #f8d7da; color: #721c24; padding: 12px; border-radius: 6px; border: 1px solid #f5c6cb;">هذا البريد الإلكتروني غير موجود</div>';
+          return;
+        }
+
+        const userData = users[0];
+
+        // تحديث كلمة المرور في Supabase
+        const { error: updateError } = await supabaseCall('PATCH', 'users',
+          { password: newPassword },
+          { id: `eq.${userData.id}` }
+        );
+
+        if (updateError) throw updateError;
+
+        msgDiv.innerHTML = '<div style="background: #d4edda; color: #155724; padding: 12px; border-radius: 6px; border: 1px solid #c3e6cb;">✅ تم إعادة تعيين كلمة المرور بنجاح!</div>';
+
+        // مسح النموذج
+        document.getElementById('resetEmail').value = '';
+        document.getElementById('resetPassword').value = '';
+        document.getElementById('resetPasswordConfirm').value = '';
+
+        // العودة إلى شاشة الدخول بعد ثانيتين
+        setTimeout(() => {
+          msgDiv.innerHTML = '';
+          showScreen('screen-login');
+        }, 2000);
+
+      } catch (error) {
+        console.error('Reset Password Error:', error);
+        msgDiv.innerHTML = '<div style="background: #f8d7da; color: #721c24; padding: 12px; border-radius: 6px; border: 1px solid #f5c6cb;">خطأ: ' + error.message + '</div>';
       }
-
-      msgDiv.innerHTML = '<div style="background: #d4edda; color: #155724; padding: 12px; border-radius: 6px; border: 1px solid #c3e6cb;">✅ تم تحديث كلمة المرور بنجاح!</div>';
-      setTimeout(() => showScreen('screen-login'), 1500);
     }
 
     async function handleVerifyEmail() {
       const code = document.getElementById('verificationCode').value.trim();
       const msgDiv = document.getElementById('verifyMsg');
       const tempEmail = localStorage.getItem('tempEmail');
+      const tempPassword = localStorage.getItem('tempPassword');
 
       if (!code) {
         msgDiv.innerHTML = '<div style="background: #f8d7da; color: #721c24; padding: 12px; border-radius: 6px; border: 1px solid #f5c6cb;">يرجى إدخال الرمز</div>';
@@ -610,28 +628,46 @@
       }
 
       try {
-        // التحقق من رمزنا الخاص (للبراند) — الحساب نفسه أُنشئ فعلياً وقت
-        // handleRegister عبر signUpUser، فما بنحتاج ننشئه هون من جديد.
+        // التحقق من OTP
         const result = await verifyOTP(tempEmail, code);
 
         if (!result.success) {
           throw new Error(result.error);
         }
 
-        // المستخدم أصلاً مسجّل دخول (الجلسة من signUpUser وقت التسجيل)
-        const authUser = await getCurrentAuthUser();
-        const userId = authUser ? authUser.id : null;
+        // ⭐ تغيير: الآن نقوم بإنشاء المستخدم في Supabase فقط بعد التحقق من OTP بنجاح
+        msgDiv.innerHTML = '<div style="background: #fff3cd; color: #856404; padding: 12px; border-radius: 6px; border: 1px solid #ffeaa7;">⏳ جاري إنشاء حسابك...</div>';
 
+        const { data: userData, error: createError } = await supabaseCall('POST', 'users', {
+          email: tempEmail,
+          password: tempPassword
+        });
+
+        if (createError) {
+          throw new Error('فشل في إنشاء الحساب: ' + createError);
+        }
+
+        // استخراج معرف المستخدم من الرد
+        const userId = userData && userData[0] ? userData[0].id : null;
+
+        if (!userId) {
+          throw new Error('فشل في إنشاء المستخدم - لم نتلقَ معرف');
+        }
+
+        // تسجيل الدخول تلقائياً بعد التحقق والإنشاء الناجح
         localStorage.setItem('currentUser', tempEmail);
-        if (userId) localStorage.setItem('userId', userId);
+        localStorage.setItem('userId', userId);
 
         // مسح البيانات المؤقتة
         localStorage.removeItem('tempEmail');
+        localStorage.removeItem('tempPassword');
 
-        msgDiv.innerHTML = '<div style="background: #d4edda; color: #155724; padding: 12px; border-radius: 6px; border: 1px solid #c3e6cb;">✅ تم التحقق من البريد بنجاح!</div>';
+        msgDiv.innerHTML = '<div style="background: #d4edda; color: #155724; padding: 12px; border-radius: 6px; border: 1px solid #c3e6cb;">✅ تم التحقق من البريد وإنشاء الحساب بنجاح!</div>';
 
         document.getElementById('verificationCode').value = '';
         updateUserDisplay();
+
+        console.log('✅ تم إنشاء المستخدم في Supabase بنجاح:', tempEmail);
 
         // الانتقال إلى شاشة إكمال البروفايل
         setTimeout(() => {
@@ -667,28 +703,47 @@
       }
     }
 
-    // ⭐ دالة تخطي رمزنا الخاص (OTP) والمتابعة — الحساب نفسه أُنشئ فعلياً
-    // عبر Supabase Auth وقت التسجيل، فهاي بس بتكمل بدون انتظار الرمز
+    // ⭐ دالة تخطي التحقق من البريد والمتابعة مباشرة
     async function handleSkipVerification() {
       const tempEmail = localStorage.getItem('tempEmail');
+      const tempPassword = localStorage.getItem('tempPassword');
 
-      if (!tempEmail) {
+      if (!tempEmail || !tempPassword) {
         alert('حدث خطأ - الرجاء بدء التسجيل من جديد');
         showScreen('screen-register');
         return;
       }
 
       try {
-        const authUser = await getCurrentAuthUser();
-        const userId = authUser ? authUser.id : null;
+        // إنشاء المستخدم في Supabase مباشرة بدون التحقق من OTP
+        const { data: userData, error: createError } = await supabaseCall('POST', 'users', {
+          email: tempEmail,
+          password: tempPassword
+        });
 
+        if (createError) {
+          throw new Error('فشل في إنشاء الحساب: ' + createError);
+        }
+
+        // استخراج معرف المستخدم
+        const userId = userData && userData[0] ? userData[0].id : null;
+
+        if (!userId) {
+          throw new Error('فشل في إنشاء المستخدم');
+        }
+
+        // تسجيل الدخول
         localStorage.setItem('currentUser', tempEmail);
-        if (userId) localStorage.setItem('userId', userId);
-        localStorage.removeItem('tempEmail');
+        localStorage.setItem('userId', userId);
 
-        alert('✅ تم تأكيد الحساب! متابعة...');
+        // مسح البيانات المؤقتة
+        localStorage.removeItem('tempEmail');
+        localStorage.removeItem('tempPassword');
+
+        alert('✅ تم إنشاء الحساب بنجاح! متابعة...');
         updateUserDisplay();
 
+        // الانتقال إلى شاشة إكمال البروفايل
         setTimeout(() => {
           showScreen('screen-complete-profile');
         }, 1000);
@@ -715,8 +770,6 @@
 
     async function logoutUser() {
       try {
-        // ⭐ إنهاء الجلسة الحقيقية (JWT) من Supabase أولاً
-        await signOutUser();
 
         // حذف بيانات الجلسة من الجهاز (مع الحفاظ على سجل الحسابات)
         const savedUsers = localStorage.getItem('localUsers');
@@ -1737,19 +1790,18 @@
           console.log('✅ Profile picture uploaded to Cloudinary:', profilePicUrl);
         }
 
-        // حفظ بيانات البروفايل على Supabase (جدول profiles)
-        const { error: updateError } = await supabaseClient
-          .from('profiles')
-          .update({
+        // حفظ بيانات البروفايل على Supabase
+        const { error: updateError } = await supabaseCall('PATCH', 'users',
+          {
             full_name: fullName,
             phone: phone,
             company: company,
             country: country,
-            city: city,
-            description: description,
+            bio: description,
             avatar_url: profilePicUrl
-          })
-          .eq('id', userId);
+          },
+          { id: `eq.${userId}` }
+        );
 
         if (updateError) throw updateError;
 
@@ -1867,9 +1919,8 @@
 
         // Save to Supabase (cloud storage) 🌐
         console.log('📡 جاري حفظ البيانات على السحابة...');
-        const { error: updateError } = await supabaseClient
-          .from('profiles')
-          .update({
+        const { error: updateError } = await supabaseCall('PATCH', 'users',
+          {
             full_name: name,
             company: company,
             phone: phone,
@@ -1877,8 +1928,9 @@
             city: city,
             description: description,
             profile_image_url: profilePicUrl
-          })
-          .eq('email', currentUser);
+          },
+          { email: `eq.${currentUser}` }
+        );
 
         if (updateError) {
           console.error('⚠️ تحذير: فشل حفظ على السحابة', updateError);
@@ -1976,12 +2028,10 @@
         console.log('🆔 معرف المستخدم:', userId);
         console.log('📡 جاري تحميل البروفايل من السحابة...');
 
-        // جلب البيانات من Supabase (السحابة) 🌐 — جدول profiles
-        // استخدام supabaseClient (يرسل JWT المستخدم الحقيقي) حتى RLS تسمح بالقراءة
-        const { data: users, error } = await supabaseClient
-          .from('profiles')
-          .select('*')
-          .eq('id', userId);
+        // جلب البيانات من Supabase (السحابة) 🌐
+        const { data: users, error } = await supabaseCall('GET', 'users', null, {
+          email: `eq.${currentUser}`
+        });
 
         let profileData = {};
 
@@ -2561,3 +2611,20 @@
         document.body.classList.remove('intro-playing');
       }, 2500);
     }
+
+// ⭐ دالة الدخول كضيف — Global Scope (متاحة دائماً)
+function handleGuestLogin() {
+  localStorage.setItem('isGuest', 'true');
+  localStorage.setItem('currentUser', 'ضيف');
+  localStorage.removeItem('userId');
+  
+  alert('🌐 أهلاً بك كضيف!\nتستطيع المشاهدة فقط');
+  
+  document.body.classList.add('guest-mode');
+  if (typeof updateUserDisplay === 'function') {
+    updateUserDisplay();
+  }
+  if (typeof showScreen === 'function') {
+    showScreen('screen-benefits');
+  }
+}
