@@ -2194,7 +2194,23 @@
             ? `💾 جاري حفظ البيانات...`
             : `💾 Saving data...`;
 
-          // Save to Firestore
+          // ⭐ حفظ الفيديو في جدول videos بـ Supabase
+          // (هذه الخطوة كانت مفقودة — لذلك لم تظهر الفيديوهات في "أعمالنا")
+          console.log('💾 جاري الحفظ في Supabase...');
+          const { data: savedVideo, error: saveError } = await supabaseCall('POST', 'videos', {
+            user_id: userId,
+            title: fileName,
+            url: videoURL,
+            description: new Date().toLocaleDateString(currentLanguage === 'ar' ? 'ar-EG' : 'en-US'),
+            file_name: fileName
+          });
+
+          if (saveError) {
+            console.error('❌ فشل الحفظ في Supabase:', saveError);
+            throw new Error('فشل حفظ الفيديو في قاعدة البيانات: ' + saveError);
+          }
+          console.log('✅ تم حفظ الفيديو في Supabase:', savedVideo);
+
           // Save to localStorage
           let portfolio = JSON.parse(localStorage.getItem('portfolio') || '[]');
           portfolio.push({
@@ -2210,9 +2226,8 @@
           console.log('✅ Saved to localStorage');
 
 
-          // حفظ على Google Sheets (Sheet منفصل للفيديوهات!)
-          await saveVideoToCloud(fileName, videoURL, 'تم الرفع من Cloudinary');
-          console.log('☁️ تم حفظ الفيديو على Google Sheets');
+          // ملاحظة: كان هنا استدعاء saveVideoToCloud() الذي يحفظ في نفس جدول
+          // videos — أُزيل لأنه يسبب تكرار الصف، والحفظ يتم أعلاه مع إظهار الأخطاء.
 
           // Add to Cloudinary backup
           let cloudinaryVideos = JSON.parse(localStorage.getItem('cloudinaryVideos') || '[]');
