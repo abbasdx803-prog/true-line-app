@@ -193,10 +193,15 @@
 
       console.log('📧 جاري حفظ OTP في Supabase...');
 
-      // حفظ OTP في Supabase
+      // ⭐ حساب وقت انتهاء الصلاحية (10 دقائق من الآن)
+      const expiresAt = new Date();
+      expiresAt.setMinutes(expiresAt.getMinutes() + 10);
+
+      // حفظ OTP في Supabase مع تاريخ الانتهاء
       const { data: otpData, error: otpError } = await supabaseCall('POST', 'otp', {
         email: email,
-        code: otpCode
+        code: otpCode,
+        expires_at: expiresAt.toISOString()
       });
 
       if (otpError) throw new Error('فشل في حفظ OTP: ' + otpError);
