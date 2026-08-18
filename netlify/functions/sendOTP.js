@@ -1,19 +1,32 @@
 /* ============================================================
    True LINE — إرسال رمز التحقق عبر MailerSend
    ------------------------------------------------------------
-   ⚠️ غيّر القيمتين التاليتين فقط:
+   🔒 التوكن لم يعد داخل الكود.
+   يُقرأ من متغيرات بيئة Netlify:
+   Site configuration → Environment variables → MAILERSEND_TOKEN
    ============================================================ */
 
-const MAILERSEND_TOKEN = 'mlsn.4f4e79c97514383fbeb37025bb5648583c1bfc904e5ec6f65c3896296ea075f9';
-const FROM_EMAIL       = 'noreply@test-r6ke4n10d1egon12.mlsender.net';
-const FROM_NAME        = 'True LINE';
-
-/* ============================================================ */
+const FROM_EMAIL = 'noreply@test-r6ke4n10d1egon12.mlsender.net'; // ليس سراً — يمكن بقاؤه هنا
+const FROM_NAME  = 'True LINE';
 
 exports.handler = async (event) => {
   console.log('📧 Netlify Function triggered');
 
   try {
+    // 🔒 قراءة التوكن من متغيرات البيئة
+    const MAILERSEND_TOKEN = process.env.MAILERSEND_TOKEN;
+
+    if (!MAILERSEND_TOKEN) {
+      console.error('❌ المتغير MAILERSEND_TOKEN غير معرّف في Netlify');
+      return {
+        statusCode: 500,
+        body: JSON.stringify({
+          error: 'إعدادات الخادم ناقصة',
+          details: 'MAILERSEND_TOKEN غير موجود في متغيرات بيئة Netlify'
+        })
+      };
+    }
+
     const data = typeof event.body === 'string' ? JSON.parse(event.body) : event.body;
     const { email, otpCode } = data || {};
 
