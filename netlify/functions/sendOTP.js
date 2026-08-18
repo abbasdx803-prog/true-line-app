@@ -1,28 +1,23 @@
 exports.handler = async (event, context) => {
   console.log('📧 Netlify Function triggered');
   console.log('Event body:', event.body);
-
   try {
     let data;
-    
+
     if (typeof event.body === 'string') {
       data = JSON.parse(event.body);
     } else {
       data = event.body;
     }
-
     const { email, otpCode } = data;
-
     if (!email || !otpCode) {
       throw new Error('Missing email or otpCode');
     }
-
     console.log('Sending email to:', email);
-
     const response = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: {
-        'Authorization': 'Bearer re_QWjVoVbo_DssKrLtQZrwoPQK42WKDtyyX',
+        'Authorization': 'Bearer re_Sv7uxwX1_4tVwN9gmaR6koKmFdHzEv6y7',
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
@@ -39,18 +34,14 @@ exports.handler = async (event, context) => {
         </div>`
       })
     });
-
     console.log('Resend response:', response.status);
-
     if (!response.ok) {
       const errorText = await response.text();
       console.error('Resend error:', errorText);
       throw new Error('Resend API error: ' + response.status);
     }
-
     const result = await response.json();
     console.log('✅ Email sent successfully');
-
     return {
       statusCode: 200,
       body: JSON.stringify({ success: true, messageId: result.id })

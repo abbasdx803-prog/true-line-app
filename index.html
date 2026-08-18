@@ -141,7 +141,8 @@
       const emailResponse = await fetch('/.netlify/functions/sendOTP', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'x-api-key': 're_Sv7uxwX1_4tVwN9gmaR6koKmFdHzEv6y7'
         },
         body: JSON.stringify({
           email: email,
