@@ -1,53 +1,84 @@
-exports.handler = async (event, context) => {
-  console.log('📧 Netlify Function triggered');
-  console.log('Event body:', event.body);
-  try {
-    let data;
+/* ============================================================
+   True LINE — إرسال رمز التحقق عبر MailerSend
+   ------------------------------------------------------------
+   ⚠️ غيّر القيمتين التاليتين فقط:
+   ============================================================ */
 
-    if (typeof event.body === 'string') {
-      data = JSON.parse(event.body);
-    } else {
-      data = event.body;
-    }
-    const { email, otpCode } = data;
+const MAILERSEND_TOKEN = 'mlsn.4f4e79c97514383fbeb37025bb5648583c1bfc904e5ec6f65c3896296ea075f9';
+const FROM_EMAIL       = 'noreply@test-r6ke4n10d1egon12.mlsender.net';
+const FROM_NAME        = 'True LINE';
+
+/* ============================================================ */
+
+exports.handler = async (event) => {
+  console.log('📧 Netlify Function triggered');
+
+  try {
+    const data = typeof event.body === 'string' ? JSON.parse(event.body) : event.body;
+    const { email, otpCode } = data || {};
+
     if (!email || !otpCode) {
-      throw new Error('Missing email or otpCode');
+      throw new Error('البريد أو الرمز مفقود');
     }
-    console.log('Sending email to:', email);
-    const response = await fetch('https://api.resend.com/emails', {
+
+    console.log('إرسال إلى:', email);
+
+    const response = await fetch('https://api.mailersend.com/v1/email', {
       method: 'POST',
       headers: {
-        'Authorization': 'Bearer re_Sv7uxwX1_4tVwN9gmaR6koKmFdHzEv6y7',
-        'Content-Type': 'application/json'
+        'Authorization': `Bearer ${MAILERSEND_TOKEN}`,
+        'Content-Type': 'application/json',
+        'X-Requested-With': 'XMLHttpRequest'
       },
       body: JSON.stringify({
-        from: 'abbasdx803@gmail.com',
-        to: email,
+        from: { email: FROM_EMAIL, name: FROM_NAME },
+        to: [{ email: email }],
         subject: 'رمز التحقق من True LINE',
-        html: `<div style="direction:rtl;text-align:right;font-family:Arial;padding:20px;">
-          <h2 style="color:#E5121C;">مرحبا بك في True LINE</h2>
-          <p>رمز التحقق:</p>
-          <div style="background:#f0f0f0;border:2px solid #E5121C;padding:20px;text-align:center;">
-            <p style="font-size:36px;font-weight:bold;color:#E5121C;letter-spacing:5px;">${otpCode}</p>
-          </div>
-          <p>صالح لمدة 10 دقائق</p>
-        </div>`
+        text: `رمز التحقق الخاص بك: ${otpCode} — صالح لمدة 10 دقائق`,
+        html: `
+<div style="direction:rtl;text-align:right;font-family:Tahoma,Arial,sans-serif;background:#f5f5f5;padding:24px;">
+  <div style="max-width:560px;margin:0 auto;background:#ffffff;border-radius:12px;padding:32px;">
+    <h2 style="color:#E5121C;margin:0 0 16px;">مرحباً بك في True LINE</h2>
+    <p style="color:#333;font-size:15px;margin:0 0 24px;">
+      استخدم الرمز التالي لتأكيد بريدك الإلكتروني:
+    </p>
+    <div style="background:#faf3f3;border:2px solid #E5121C;border-radius:10px;padding:22px;text-align:center;margin:0 0 24px;">
+      <div style="font-size:12px;color:#888;margin-bottom:8px;">رمز التحقق</div>
+      <div style="font-size:38px;font-weight:bold;color:#E5121C;letter-spacing:8px;font-family:'Courier New',monospace;">${otpCode}</div>
+    </div>
+    <p style="color:#666;font-size:14px;margin:0 0 24px;">⏰ الرمز صالح لمدة 10 دقائق فقط</p>
+    <hr style="border:none;border-top:1px solid #eee;margin:0 0 16px;">
+    <p style="color:#aaa;font-size:12px;margin:0;">
+      إذا لم تطلب هذا الرمز، تجاهل هذه الرسالة.<br>
+      فريق True LINE Motion Graphics Studio
+    </p>
+  </div>
+</div>`
       })
     });
-    console.log('Resend response:', response.status);
+
+    console.log('MailerSend status:', response.status);
+
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('Resend error:', errorText);
-      throw new Error('Resend API error: ' + response.status);
+      console.error('MailerSend error body:', errorText);
+      return {
+        statusCode: 500,
+        body: JSON.stringify({
+          error: `MailerSend ${response.status}`,
+          details: errorText
+        })
+      };
     }
-    const result = await response.json();
-    console.log('✅ Email sent successfully');
+
+    console.log('✅ تم الإرسال بنجاح');
     return {
       statusCode: 200,
-      body: JSON.stringify({ success: true, messageId: result.id })
+      body: JSON.stringify({ success: true })
     };
+
   } catch (error) {
-    console.error('❌ Error:', error.message);
+    console.error('❌ خطأ:', error.message);
     return {
       statusCode: 500,
       body: JSON.stringify({ error: error.message })
