@@ -1,6 +1,23 @@
-exports.handler = async (event) => {
+exports.handler = async (event, context) => {
+  console.log('📧 Netlify Function triggered');
+  console.log('Event body:', event.body);
+
   try {
-    const { email, otpCode } = JSON.parse(event.body);
+    let data;
+    
+    if (typeof event.body === 'string') {
+      data = JSON.parse(event.body);
+    } else {
+      data = event.body;
+    }
+
+    const { email, otpCode } = data;
+
+    if (!email || !otpCode) {
+      throw new Error('Missing email or otpCode');
+    }
+
+    console.log('Sending email to:', email);
 
     const response = await fetch('https://api.resend.com/emails', {
       method: 'POST',
@@ -12,30 +29,34 @@ exports.handler = async (event) => {
         from: 'abbasdx803@gmail.com',
         to: email,
         subject: 'رمز التحقق من True LINE',
-        html: `
-          <div style="font-family: 'Arial', sans-serif; direction: rtl; text-align: right; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f5f5f5;">
-            <div style="background-color: white; border-radius: 10px; padding: 30px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
-              <h2 style="color: #E5121C; margin-bottom: 20px;">مرحبا بك في True LINE</h2>
-              <p style="color: #333; font-size: 16px; margin-bottom: 20px;">شكراً لك على إنشاء حساب جديد. استخدم الرمز أدناه:</p>
-              <div style="background-color: #f0f0f0; border: 2px solid #E5121C; border-radius: 8px; padding: 20px; text-align: center; margin: 30px 0;">
-                <p style="margin: 0; font-size: 36px; font-weight: bold; color: #E5121C; letter-spacing: 5px;">${otpCode}</p>
-              </div>
-              <p style="color: #666; font-size: 14px;">⏰ صالح لمدة 10 دقائق فقط</p>
-            </div>
+        html: `<div style="direction:rtl;text-align:right;font-family:Arial;padding:20px;">
+          <h2 style="color:#E5121C;">مرحبا بك في True LINE</h2>
+          <p>رمز التحقق:</p>
+          <div style="background:#f0f0f0;border:2px solid #E5121C;padding:20px;text-align:center;">
+            <p style="font-size:36px;font-weight:bold;color:#E5121C;letter-spacing:5px;">${otpCode}</p>
           </div>
-        `
+          <p>صالح لمدة 10 دقائق</p>
+        </div>`
       })
     });
 
+    console.log('Resend response:', response.status);
+
     if (!response.ok) {
-      throw new Error('فشل إرسال البريد');
+      const errorText = await response.text();
+      console.error('Resend error:', errorText);
+      throw new Error('Resend API error: ' + response.status);
     }
+
+    const result = await response.json();
+    console.log('✅ Email sent successfully');
 
     return {
       statusCode: 200,
-      body: JSON.stringify({ success: true })
+      body: JSON.stringify({ success: true, messageId: result.id })
     };
   } catch (error) {
+    console.error('❌ Error:', error.message);
     return {
       statusCode: 500,
       body: JSON.stringify({ error: error.message })
