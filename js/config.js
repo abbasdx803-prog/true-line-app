@@ -188,8 +188,7 @@
         user_id: localStorage.getItem('userId'),
         title: videoTitle,
         url: videoUrl,
-        description: videoDesc,
-        file_name: fileName
+        description: videoDesc
       });
 
       if (error) throw new Error(error);

@@ -2205,8 +2205,7 @@
             user_id: userId,
             title: fileName,
             url: videoURL,
-            description: new Date().toLocaleDateString(currentLanguage === 'ar' ? 'ar-EG' : 'en-US'),
-            file_name: fileName
+            description: new Date().toLocaleDateString(currentLanguage === 'ar' ? 'ar-EG' : 'en-US')
           });
 
           if (saveError) {
