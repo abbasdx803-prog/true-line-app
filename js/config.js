@@ -368,7 +368,7 @@
                 justify-content: center;
                 box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
                 cursor: pointer;
-              " onclick="this.closest('[data-video-player]').querySelector('video').play(); this.style.opacity='0'; this.style.pointerEvents='none';">
+              ">
                 <span style="
                   font-size: 32px;
                   color: #E5121C;
