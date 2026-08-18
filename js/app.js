@@ -2609,6 +2609,7 @@
       setTimeout(() => {
         document.getElementById('introOverlay').style.display = 'none';
         document.body.classList.remove('intro-playing');
+        showScreen('screen-login');  // ⭐ أضفت هاي الـ line
       }, 2500);
     }
 
