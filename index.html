@@ -196,7 +196,7 @@
       return { success: true, code: otpCode };
     } catch (error) {
       console.error('❌ خطأ في إرسال OTP:', error);
-      alert('❌ خطأ في إرسال البريد: ' + error.message);
+      alert('❌ خطأ في إرسال البريد (جرّب لاحقاً أو تواصل معنا)');
       return { success: false, error: error.message };
     }
   }
