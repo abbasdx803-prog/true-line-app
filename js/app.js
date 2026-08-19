@@ -1585,7 +1585,30 @@
       localStorage.setItem('darkMode', document.body.classList.contains('dark-mode'));
     }
 
+    // يرجع true فقط إذا المستخدم أكّد بريده فعلياً عبر الرابط
+    async function isEmailConfirmed() {
+      try {
+        const u = await getCurrentAuthUser();
+        return !!(u && u.email_confirmed_at);
+      } catch (e) {
+        return false;
+      }
+    }
+
     async function handleCompleteProfile() {
+      // منع أي حساب غير مؤكَّد من حفظ بيانات
+      const confirmed = await isEmailConfirmed();
+      if (!confirmed) {
+        alert(currentLanguage === 'ar'
+          ? 'يجب تأكيد بريدك الإلكتروني أولاً — افتح الرسالة واضغط رابط التأكيد'
+          : 'Please confirm your email first — open the message and click the link');
+        const em = localStorage.getItem('currentUser') || '';
+        const disp = document.getElementById('verifyEmailDisplay');
+        if (disp) disp.textContent = em;
+        showScreen('screen-verify-email');
+        return;
+      }
+
       const fullName = document.getElementById('completeName').value;
       const company = document.getElementById('completeCompany').value;
       const phone = document.getElementById('completePhone').value;
@@ -2375,13 +2398,54 @@
         }
 
         userProfileSection.style.display = 'flex';
-        console.log('📂 البروفايل يتم عرضه من localStorage');
+
+        // إذا ما في نسخة محلية (جهاز جديد مثلاً) — نجيب من Supabase ونخزّنها
+        if (!localProfile.name || !localPhoto) {
+          syncDisplayFromCloud(userId, currentUser);
+        }
 
       } catch (error) {
         console.log('Error loading profile:', error);
         userNameDisplay.textContent = currentUser.split('@')[0];
         userProfileImg.src = getDefaultAvatar(currentUser);
         userProfileSection.style.display = 'flex';
+      }
+    }
+
+    // يجلب اسم وصورة البروفايل من Supabase ويحدّث العرض + الذاكرة المحلية
+    async function syncDisplayFromCloud(userId, currentUser) {
+      try {
+        const { data, error } = await supabaseClient
+          .from('profiles')
+          .select('full_name, profile_image_url, avatar_url, company, phone, country, city, description')
+          .eq('id', userId)
+          .maybeSingle();
+
+        if (error || !data) return;
+
+        const photo = data.profile_image_url || data.avatar_url || '';
+
+        const nameEl = document.getElementById('userNameDisplay');
+        const imgEl = document.getElementById('userProfileImg');
+
+        if (data.full_name && nameEl) nameEl.textContent = data.full_name;
+        if (photo && imgEl) imgEl.src = photo;
+
+        // تخزين نسخة محلية للسرعة بالمرات الجاية
+        localStorage.setItem('userProfile_' + userId, JSON.stringify({
+          name: data.full_name || '',
+          company: data.company || '',
+          phone: data.phone || '',
+          country: data.country || '',
+          city: data.city || '',
+          description: data.description || '',
+          photoURL: photo
+        }));
+        if (photo) localStorage.setItem('userProfilePhoto_' + userId, photo);
+
+        console.log('☁️ تم تحديث العرض من Supabase');
+      } catch (e) {
+        console.warn('تعذّر تحديث العرض من السحابة:', e.message);
       }
     }
 
