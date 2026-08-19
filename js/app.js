@@ -1745,7 +1745,8 @@
             phone: phone,
             company: company,
             country: country,
-            bio: description,
+            city: city,
+            description: description,
             avatar_url: profilePicUrl
           })
           .eq('id', userId);
