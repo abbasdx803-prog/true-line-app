@@ -12,7 +12,8 @@
 <!-- Cloudinary Upload Widget -->
 <script src="https://upload-widget.cloudinary.com/latest/index.js"></script>
 
-<!-- Supabase Configuration - REST API مباشر -->
+<!-- Supabase JS SDK - لإدارة المصادقة (تسجيل/دخول) بشكل آمن عبر supabase.auth -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 
 <!-- ===== الأنماط ===== -->
 <link rel="stylesheet" href="css/style.css">
@@ -786,22 +787,39 @@
         <div class="auth-body">
           <div class="eyebrow">RESET PASSWORD</div>
           <h1 class="title">استرجع حسابك</h1>
-          <p class="subtitle">أدخل بريدك الإلكتروني وكلمة مرور جديدة</p>
+          <p class="subtitle">أدخل بريدك الإلكتروني وسنرسل لك رابط استرجاع آمن</p>
           <div id="resetMsg" style="margin-bottom: 15px;"></div>
           <div class="field">
             <label>البريد الإلكتروني</label>
             <input type="email" id="resetEmail" placeholder="your@email.com">
           </div>
+          <button class="btn" onclick="handleResetPassword()">إرسال رابط الاسترجاع</button>
+          <button class="btn ghost" onclick="showScreen('screen-login')">العودة للدخول</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Set New Password Screen (تُفتح تلقائياً بعد الضغط على رابط الاسترجاع بالإيميل) -->
+    <div id="screen-set-new-password" class="screen" style="position:relative;">
+      <div style="position:fixed; top:0; left:0; width:100%; height:100%; z-index:-1; background: linear-gradient(135deg, #ee7752 0%, #e73c7e 25%, #23a6d5 50%, #23d5ab 75%, #ee7752 100%); background-size: 200% 200%; animation: smoothGradient 6s ease infinite;"></div>
+      <div style="position:fixed; top:-50%; left:-50%; width:200%; height:200%; background: radial-gradient(circle, rgba(255,0,128,0.4) 0%, transparent 70%); animation: float1 11s ease-in-out infinite; z-index:-1;"></div>
+      <div style="position:fixed; top:-30%; right:-30%; width:150%; height:150%; background: radial-gradient(circle, rgba(0,255,200,0.3) 0%, transparent 70%); animation: float2 15s ease-in-out infinite; z-index:-1;"></div>
+
+      <div class="auth-shell">
+        <div class="auth-body">
+          <div class="eyebrow">NEW PASSWORD</div>
+          <h1 class="title">كلمة مرور جديدة</h1>
+          <p class="subtitle">أدخل كلمة المرور الجديدة لحسابك</p>
+          <div id="setNewPasswordMsg" style="margin-bottom: 15px;"></div>
           <div class="field">
             <label>كلمة المرور الجديدة</label>
-            <input type="password" id="resetPassword" placeholder="••••••••">
+            <input type="password" id="newPasswordAfterReset" placeholder="••••••••">
           </div>
           <div class="field">
             <label>تأكيد كلمة المرور</label>
-            <input type="password" id="resetPasswordConfirm" placeholder="••••••••">
+            <input type="password" id="newPasswordConfirmAfterReset" placeholder="••••••••">
           </div>
-          <button class="btn" onclick="handleResetPassword()">إعادة تعيين كلمة المرور</button>
-          <button class="btn ghost" onclick="showScreen('screen-login')">العودة للدخول</button>
+          <button class="btn" onclick="handleSetNewPassword()">حفظ كلمة المرور</button>
         </div>
       </div>
     </div>

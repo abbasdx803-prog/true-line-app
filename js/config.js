@@ -3,6 +3,85 @@
   const SUPABASE_URL = 'https://qdmindnmvwsrnbclzrxz.supabase.co';
   const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFkbWluZG5tdndzcm5iY2x6cnh6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY4NzQyODgsImV4cCI6MjEwMjQ1MDI4OH0.dJzGFMUgaTrLzxih67UPI8yLZWu236Eu5VDNuN-9DRQ';
 
+  // ⭐ عميل Supabase الرسمي (SDK) — يُستخدم للمصادقة (auth) بحيث تصير كلمات
+  // المرور مُشفّرة (hashed) من طرف Supabase نفسه، وليست نصاً صريحاً بجدول عادي.
+  // يعتمد على مكتبة supabase-js المضافة بـ index.html قبل هذا الملف.
+  const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+  /* ============================================================
+     🔐 دوال المصادقة الآمنة (Supabase Auth)
+     تستبدل النظام القديم الذي كان يخزّن الباسورد كنص صريح
+     بجدول users ويقارنه يدوياً بالفرونت إند.
+     ============================================================ */
+
+  // تسجيل مستخدم جديد — Supabase يتكفّل بتشفير كلمة المرور
+  async function signUpUser(email, password) {
+    const { data, error } = await supabaseClient.auth.signUp({ email, password });
+    if (error) return { success: false, error: error.message };
+    return { success: true, user: data.user, session: data.session };
+  }
+
+  // تسجيل الدخول — التحقق من كلمة المرور يصير بالكامل على سيرفر Supabase
+  async function signInUser(email, password) {
+    const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
+    if (error) return { success: false, error: error.message };
+    return { success: true, user: data.user, session: data.session };
+  }
+
+  // تسجيل الخروج — يمسح الجلسة الحقيقية (JWT) من Supabase
+  async function signOutUser() {
+    const { error } = await supabaseClient.auth.signOut();
+    return { success: !error, error: error ? error.message : null };
+  }
+
+  // إرسال رابط استرجاع كلمة المرور عبر بريد Supabase الرسمي
+  // (بديل آمن لتحديث الباسورد مباشرة بدون تحقق من الهوية)
+  async function requestPasswordReset(email) {
+    const { error } = await supabaseClient.auth.resetPasswordForEmail(email, {
+      redirectTo: window.location.origin + window.location.pathname
+    });
+    return { success: !error, error: error ? error.message : null };
+  }
+
+  // تحديث كلمة المرور — يُستخدم فقط بعد أن يفتح المستخدم رابط الاسترجاع
+  // (بهذه اللحظة يملك جلسة recovery صالحة من Supabase تثبت هويته)
+  async function updateUserPassword(newPassword) {
+    const { error } = await supabaseClient.auth.updateUser({ password: newPassword });
+    return { success: !error, error: error ? error.message : null };
+  }
+
+  // ⭐ عندما يفتح المستخدم رابط استرجاع كلمة المرور من بريده، Supabase
+  // يرجّعه للموقع بحالة PASSWORD_RECOVERY — هون نعرضله شاشة كلمة مرور جديدة
+  supabaseClient.auth.onAuthStateChange((event) => {
+    if (event === 'PASSWORD_RECOVERY') {
+      if (typeof showScreen === 'function') {
+        showScreen('screen-set-new-password');
+      }
+    }
+  });
+
+  // إرجاع المستخدم الحالي من الجلسة الحقيقية (وليس من localStorage فقط)
+  async function getCurrentAuthUser() {
+    const { data, error } = await supabaseClient.auth.getUser();
+    if (error || !data.user) return null;
+    return data.user;
+  }
+
+  // فحص صلاحية الأدمن من جدول profiles (محمي بـ RLS) — وليس من localStorage
+  // مهم: هذا يمنع فقط من إظهار عناصر الواجهة. الحماية الفعلية تصير عبر
+  // RLS Policy على السيرفر تتحقق من نفس العمود role باستخدام auth.uid().
+  async function isCurrentUserAdmin() {
+    const user = await getCurrentAuthUser();
+    if (!user) return false;
+    const { data, error } = await supabaseClient
+      .from('profiles')
+      .select('role')
+      .eq('id', user.id)
+      .single();
+    if (error || !data) return false;
+    return data.role === 'admin';
+  }
+
   // دالة عامة للاتصال بـ Supabase REST API
   async function supabaseCall(method, table, data = null, filters = null) {
     try {
@@ -162,10 +241,11 @@
 
   // 🎥 دالة رفع الفيديو
   async function uploadVideo(file, videoTitle, videoDesc) {
-    const currentUser = localStorage.getItem('currentUser');
-
-    if (currentUser !== ADMIN_EMAIL) {
-      alert('❌ فقط ' + ADMIN_EMAIL + ' يستطيع رفع الفيديوهات');
+    // ⭐ الفحص هلأ عبر جدول profiles المحمي بـ RLS، وليس عبر localStorage
+    // (localStorage يقدر أي زائر يعدّله من Developer Console)
+    const isAdmin = await isCurrentUserAdmin();
+    if (!isAdmin) {
+      alert('❌ فقط الأدمن يستطيع رفع الفيديوهات');
       return false;
     }
 
@@ -700,10 +780,9 @@
   async function deleteVideo(videoTitle) {
     console.log('🗑️ بدء عملية الحذف للفيديو:', videoTitle);
 
-    const currentUser = localStorage.getItem('currentUser');
-
-    if (currentUser !== ADMIN_EMAIL) {
-      alert('❌ فقط ' + ADMIN_EMAIL + ' يستطيع حذف الفيديوهات');
+    const isAdmin = await isCurrentUserAdmin();
+    if (!isAdmin) {
+      alert('❌ فقط الأدمن يستطيع حذف الفيديوهات');
       return;
     }
 
@@ -714,29 +793,19 @@
     try {
       console.log('🗑️ محاولة حذف الفيديو:', videoTitle);
 
-      // حذف مباشر من قاعدة البيانات
-      const url = `${SUPABASE_URL}/rest/v1/videos?title=eq.${encodeURIComponent(videoTitle)}`;
-      console.log('🗑️ DELETE URL:', url);
+      // ⭐ الحذف عبر supabaseClient (يرسل JWT المستخدم الحقيقي، وليس مفتاح
+      // anon المشترك)، حتى تقدر RLS Policy تتحقق فعلياً من هوية المستخدم
+      const { data: result, error: deleteError } = await supabaseClient
+        .from('videos')
+        .delete()
+        .eq('title', videoTitle)
+        .select();
 
-      const deleteResponse = await fetch(url, {
-        method: 'DELETE',
-        headers: {
-          'apikey': SUPABASE_KEY,
-          'Authorization': `Bearer ${SUPABASE_KEY}`,
-          'Content-Type': 'application/json',
-          'Prefer': 'return=representation'
-        }
-      });
-
-      console.log('🗑️ DELETE Response Status:', deleteResponse.status);
-
-      if (!deleteResponse.ok) {
-        const errorData = await deleteResponse.text();
-        console.error('❌ خطأ الحذف:', errorData);
-        throw new Error('فشل الحذف من قاعدة البيانات');
+      if (deleteError) {
+        console.error('❌ خطأ الحذف:', deleteError);
+        throw new Error('فشل الحذف من قاعدة البيانات: ' + deleteError.message);
       }
 
-      const result = await deleteResponse.json();
       console.log('✅ تم الحذف بنجاح:', result);
 
       alert('✅ تم حذف الفيديو بنجاح!');
@@ -793,20 +862,24 @@
     }
   }
 
-  // دالة حفظ المستخدم في Supabase
+  // دالة حفظ بيانات البروفايل في جدول profiles (منفصل تماماً عن نظام
+  // المصادقة/الباسورد الذي يديره Supabase Auth بجدول auth.users الداخلي)
   async function saveUserToSupabase(email, fullName, phone, company, country, bio) {
     try {
       const userId = localStorage.getItem('userId');
 
-      const { data, error } = await supabaseCall('PATCH', 'users', {
-        id: userId,
-        email: email,
-        full_name: fullName,
-        phone: phone,
-        company: company,
-        country: country,
-        bio: bio
-      }, { id: `eq.${userId}` });
+      const { data, error } = await supabaseClient
+        .from('profiles')
+        .update({
+          email: email,
+          full_name: fullName,
+          phone: phone,
+          company: company,
+          country: country,
+          bio: bio
+        })
+        .eq('id', userId)
+        .select();
 
       if (error) throw error;
       console.log('☁️ تم حفظ بيانات المستخدم على Supabase:', data);
@@ -817,12 +890,13 @@
     }
   }
 
-  // دالة تحميل بيانات المستخدم من Supabase
+  // دالة تحميل بيانات البروفايل من جدول profiles
   async function loadUserFromSupabase(email) {
     try {
-      const { data, error } = await supabaseCall('GET', 'users', null, {
-        email: `eq.${email}`
-      });
+      const { data, error } = await supabaseClient
+        .from('profiles')
+        .select('*')
+        .eq('email', email);
 
       if (error) throw error;
 
