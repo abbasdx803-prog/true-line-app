@@ -1976,10 +1976,11 @@
         console.log('📡 جاري تحميل البروفايل من السحابة...');
 
         // جلب البيانات من Supabase (السحابة) 🌐 — جدول profiles
+        // استخدام supabaseClient (يرسل JWT المستخدم الحقيقي) حتى RLS تسمح بالقراءة
         const { data: users, error } = await supabaseClient
           .from('profiles')
           .select('*')
-          .eq('email', currentUser);
+          .eq('id', userId);
 
         let profileData = {};
 
