@@ -2579,7 +2579,7 @@
       video.playsInline = true;
 
       // Load from Supabase Storage
-      const supabaseVideoUrl = 'https://qdmindnmvwsrnbclzrxz.supabase.co/storage/v1/object/public/true%20line/video/bg-video.mp4';
+      const supabaseVideoUrl = 'https://qdmindnmvwsrnbclzrxz.supabase.co/storage/v1/object/public/true%20line/video/vecteezy_bluish-circle-bubble-background-transition-animation_11818481.mp4';
       video.src = supabaseVideoUrl;
       container.appendChild(video);
     }
