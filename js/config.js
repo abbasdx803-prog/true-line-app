@@ -52,11 +52,22 @@
 
   // ⭐ عندما يفتح المستخدم رابط استرجاع كلمة المرور من بريده، Supabase
   // يرجّعه للموقع بحالة PASSWORD_RECOVERY — هون نعرضله شاشة كلمة مرور جديدة
-  supabaseClient.auth.onAuthStateChange((event) => {
+  supabaseClient.auth.onAuthStateChange((event, session) => {
     if (event === 'PASSWORD_RECOVERY') {
       if (typeof showScreen === 'function') {
         showScreen('screen-set-new-password');
       }
+    } else if (event === 'SIGNED_IN' && session && session.user) {
+      // ⭐ يُطلق أيضاً عند العودة من رابط تأكيد البريد — نكمّل الدخول هنا
+      localStorage.setItem('currentUser', session.user.email);
+      localStorage.setItem('userId', session.user.id);
+
+      // تنظيف رمز التأكيد من عنوان الصفحة
+      if (window.location.hash && window.location.hash.length > 1) {
+        history.replaceState(null, '', window.location.pathname);
+      }
+
+      if (typeof updateUserDisplay === 'function') updateUserDisplay();
     }
   });
 
