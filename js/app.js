@@ -432,20 +432,15 @@
         // نحتفظ بالبريد مؤقتاً فقط لعرض شاشة "التحقق" — بدون أي باسورد
         localStorage.setItem('tempEmail', email);
 
-        // إرسال رمز OTP التعريفي الخاص بنا (للتجربة/البراند) بالتوازي
-        // مع بريد التأكيد الذي يرسله Supabase تلقائياً
-        const otpResult = await sendOTP(email);
-
-        if (!otpResult.success) {
-          console.warn('⚠️ فشل إرسال بريد OTP الإضافي:', otpResult.error);
-        } else {
-          alert(currentLanguage === 'ar' ? '📧 تم إرسال رمز التحقق إلى بريدك الإلكتروني' : '📧 Verification code sent to your email');
-        }
+        // Supabase أرسل بريد التأكيد تلقائياً — بنوجّه المستخدم يفتحه
+        alert(currentLanguage === 'ar'
+          ? '📧 أرسلنا رسالة تأكيد إلى بريدك — افتحها واضغط الرابط لتفعيل حسابك'
+          : '📧 A confirmation email was sent — open it and click the link to activate your account');
 
         document.getElementById('regEmail').value = '';
         document.getElementById('regPassword').value = '';
 
-        // الانتقال إلى شاشة التحقق من البريد
+        // الانتقال إلى شاشة "افحص بريدك"
         setTimeout(() => {
           document.getElementById('verifyEmailDisplay').textContent = email;
           showScreen('screen-verify-email');
@@ -592,111 +587,6 @@
 
       msgDiv.innerHTML = '<div style="background: #d4edda; color: #155724; padding: 12px; border-radius: 6px; border: 1px solid #c3e6cb;">✅ تم تحديث كلمة المرور بنجاح!</div>';
       setTimeout(() => showScreen('screen-login'), 1500);
-    }
-
-    async function handleVerifyEmail() {
-      const code = document.getElementById('verificationCode').value.trim();
-      const msgDiv = document.getElementById('verifyMsg');
-      const tempEmail = localStorage.getItem('tempEmail');
-
-      if (!code) {
-        msgDiv.innerHTML = '<div style="background: #f8d7da; color: #721c24; padding: 12px; border-radius: 6px; border: 1px solid #f5c6cb;">يرجى إدخال الرمز</div>';
-        return;
-      }
-
-      if (code.length !== 6 || isNaN(code)) {
-        msgDiv.innerHTML = '<div style="background: #f8d7da; color: #721c24; padding: 12px; border-radius: 6px; border: 1px solid #f5c6cb;">الرمز يجب أن يكون 6 أرقام</div>';
-        return;
-      }
-
-      try {
-        // التحقق من رمزنا الخاص (للبراند) — الحساب نفسه أُنشئ فعلياً وقت
-        // handleRegister عبر signUpUser، فما بنحتاج ننشئه هون من جديد.
-        const result = await verifyOTP(tempEmail, code);
-
-        if (!result.success) {
-          throw new Error(result.error);
-        }
-
-        // المستخدم أصلاً مسجّل دخول (الجلسة من signUpUser وقت التسجيل)
-        const authUser = await getCurrentAuthUser();
-        const userId = authUser ? authUser.id : null;
-
-        localStorage.setItem('currentUser', tempEmail);
-        if (userId) localStorage.setItem('userId', userId);
-
-        // مسح البيانات المؤقتة
-        localStorage.removeItem('tempEmail');
-
-        msgDiv.innerHTML = '<div style="background: #d4edda; color: #155724; padding: 12px; border-radius: 6px; border: 1px solid #c3e6cb;">✅ تم التحقق من البريد بنجاح!</div>';
-
-        document.getElementById('verificationCode').value = '';
-        updateUserDisplay();
-
-        // الانتقال إلى شاشة إكمال البروفايل
-        setTimeout(() => {
-          showScreen('screen-complete-profile');
-        }, 1500);
-
-      } catch (error) {
-        console.error('Email Verification Error:', error);
-        msgDiv.innerHTML = '<div style="background: #f8d7da; color: #721c24; padding: 12px; border-radius: 6px; border: 1px solid #f5c6cb;">❌ ' + error.message + '</div>';
-      }
-    }
-
-    async function handleResendOTP() {
-      const tempEmail = localStorage.getItem('tempEmail');
-
-      if (!tempEmail) {
-        alert('حدث خطأ - الرجاء بدء التسجيل من جديد');
-        showScreen('screen-register');
-        return;
-      }
-
-      try {
-        const result = await sendOTP(tempEmail);
-
-        if (!result.success) {
-          throw new Error(result.error);
-        }
-
-        alert('📧 تم إعادة إرسال الرمز بنجاح');
-      } catch (error) {
-        console.error('Resend OTP Error:', error);
-        alert('❌ فشل إعادة إرسال الرمز: ' + error.message);
-      }
-    }
-
-    // ⭐ دالة تخطي رمزنا الخاص (OTP) والمتابعة — الحساب نفسه أُنشئ فعلياً
-    // عبر Supabase Auth وقت التسجيل، فهاي بس بتكمل بدون انتظار الرمز
-    async function handleSkipVerification() {
-      const tempEmail = localStorage.getItem('tempEmail');
-
-      if (!tempEmail) {
-        alert('حدث خطأ - الرجاء بدء التسجيل من جديد');
-        showScreen('screen-register');
-        return;
-      }
-
-      try {
-        const authUser = await getCurrentAuthUser();
-        const userId = authUser ? authUser.id : null;
-
-        localStorage.setItem('currentUser', tempEmail);
-        if (userId) localStorage.setItem('userId', userId);
-        localStorage.removeItem('tempEmail');
-
-        alert('✅ تم تأكيد الحساب! متابعة...');
-        updateUserDisplay();
-
-        setTimeout(() => {
-          showScreen('screen-complete-profile');
-        }, 1000);
-
-      } catch (error) {
-        console.error('Skip Verification Error:', error);
-        alert('❌ خطأ: ' + error.message);
-      }
     }
 
     function forgetEmail() {
@@ -2561,3 +2451,15 @@
         document.body.classList.remove('intro-playing');
       }, 2500);
     }
+
+// دالة الدخول كضيف — مشاهدة فقط بدون حساب
+function handleGuestLogin() {
+  localStorage.setItem('isGuest', 'true');
+  localStorage.setItem('currentUser', 'ضيف');
+  localStorage.removeItem('userId');
+
+  document.body.classList.add('guest-mode');
+
+  if (typeof updateUserDisplay === 'function') updateUserDisplay();
+  if (typeof showScreen === 'function') showScreen('screen-benefits');
+}

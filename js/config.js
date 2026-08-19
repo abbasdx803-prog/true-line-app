@@ -196,66 +196,6 @@
   // Google Apps Script URL لإرسال البريد
   const GOOGLE_APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyjMl2lP2cmUETvt5pDIaQP72MCZaWOxIpqN1wZJ2f4hPL3IC1DH3jRUPtU9peJRlv1lA/exec';
 
-  // دالة إرسال OTP عبر Resend API
-  async function sendOTP(email) {
-    try {
-      // توليد رمز عشوائي 6 أرقام
-      const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
-
-      console.log('📧 جاري حفظ OTP في Supabase...');
-
-      // ⭐ حساب وقت انتهاء الصلاحية (10 دقائق من الآن)
-      const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
-
-      // ⭐ استخدام supabaseClient بدل supabaseCall (أقوى وأدق)
-      const { data: otpData, error: otpError } = await supabaseClient
-        .from('otp')
-        .insert({
-          email: email,
-          code: otpCode,
-          expires_at: expiresAt.toISOString()
-        });
-
-      if (otpError) throw new Error('فشل في حفظ OTP: ' + otpError);
-
-      console.log('✅ تم حفظ OTP في Supabase');
-
-      // ⭐ إرسال OTP عبر Netlify Function (بدون CORS مشاكل)
-      console.log('📧 جاري إرسال البريد عبر Netlify Function...');
-
-      const emailResponse = await fetch('/.netlify/functions/sendOTP', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          email: email,
-          otpCode: otpCode
-        })
-      });
-
-      if (!emailResponse.ok) {
-        const errorData = await emailResponse.json();
-        console.error('🔍 تفاصيل الخطأ الكاملة من MailerSend:', errorData);
-        console.error('🔍 details:', errorData.details);
-        throw new Error(`فشل إرسال البريد: ${errorData.error || 'خطأ غير معروف'} — ${errorData.details || ''}`);
-      }
-
-      const emailData = await emailResponse.json();
-      console.log('✅ تم إرسال البريد بنجاح:', emailData);
-
-      // عرض رسالة نجاح
-      alert(`✅ تم إرسال رمز التحقق إلى:\n${email}\n\n⏰ صالح لمدة 10 دقائق`);
-
-      console.log('✅ تم إرسال OTP إلى:', email, '| الرمز:', otpCode);
-      return { success: true, code: otpCode };
-    } catch (error) {
-      console.error('❌ خطأ في إرسال OTP:', error);
-      alert('❌ خطأ في إرسال البريد (جرّب لاحقاً أو تواصل معنا)');
-      return { success: false, error: error.message };
-    }
-  }
-
   // 🎥 دالة رفع الفيديو
   async function uploadVideo(file, videoTitle, videoDesc) {
     // ⭐ الفحص هلأ عبر جدول profiles المحمي بـ RLS، وليس عبر localStorage
@@ -835,62 +775,6 @@
     } catch (error) {
       console.error('❌ خطأ:', error);
       alert('❌ خطأ في حذف الفيديو:\n' + error.message);
-    }
-  }
-
-  // دالة التحقق من OTP
-  async function verifyOTP(email, code) {
-    try {
-      // البحث عن OTP في قاعدة البيانات
-      const { data: otpRecords, error: searchError } = await supabaseCall('GET', 'otp', null, {
-        email: `eq.${email}`,
-        verified: 'eq.false',
-        order: 'created_at.desc'
-      });
-
-      if (searchError || !otpRecords || otpRecords.length === 0) {
-        throw new Error('لم يتم العثور على رمز تحقق');
-      }
-
-      const otpRecord = otpRecords[0];
-      
-      // ⭐ تصحيح: فحص صلاحية الرمز بشكل صحيح
-      console.log('🔍 OTP Record:', otpRecord);
-      console.log('⏰ expires_at من database:', otpRecord.expires_at);
-      
-      if (!otpRecord.expires_at) {
-        console.warn('⚠️ expires_at ناقصة — الرمز قديم بدون صلاحية');
-        throw new Error('انتهت صلاحية الرمز - طلب رمز جديد');
-      }
-
-      const expiresAt = new Date(otpRecord.expires_at);
-      const now = new Date();
-      
-      console.log('📅 الآن:', now.toISOString());
-      console.log('📅 انتهاء الصلاحية:', expiresAt.toISOString());
-      console.log('⏱️ الفارق (ثواني):', (expiresAt - now) / 1000);
-      
-      if (now > expiresAt) {
-        console.error('❌ الرمز انتهت صلاحيته!');
-        throw new Error('انتهت صلاحية الرمز - طلب رمز جديد');
-      }
-
-      // التحقق من الرمز
-      if (otpRecord.code !== code) {
-        throw new Error('الرمز غير صحيح');
-      }
-
-      // تحديث الـ OTP ليصبح مستخدماً
-      await supabaseCall('PATCH', 'otp',
-        { verified: true },
-        { id: `eq.${otpRecord.id}` }
-      );
-
-      console.log('✅ تم التحقق من البريد بنجاح');
-      return { success: true };
-    } catch (error) {
-      console.error('❌ خطأ في التحقق:', error);
-      return { success: false, error: error.message };
     }
   }
 

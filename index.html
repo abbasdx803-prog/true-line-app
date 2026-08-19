@@ -712,27 +712,24 @@
 
       <div class="auth-shell">
         <div class="auth-body">
-          <div class="eyebrow">VERIFY EMAIL</div>
-          <h1 class="title">تحقق من بريدك</h1>
-          <p class="subtitle">أرسلنا رمز تحقق إلى بريدك الإلكتروني</p>
+          <div class="eyebrow">CHECK YOUR EMAIL</div>
+          <h1 class="title">افحص بريدك</h1>
+          <p class="subtitle">أرسلنا رسالة تأكيد إلى بريدك الإلكتروني</p>
           <p id="verifyEmailDisplay" style="text-align: center; color: var(--red); font-weight: bold; margin: 15px 0;"></p>
 
           <div id="verifyMsg"></div>
 
-          <div class="field">
-            <label>رمز التحقق</label>
-            <input type="text" id="verificationCode" placeholder="أدخل الرمز المكون من 6 أرقام" maxlength="6" inputmode="numeric">
+          <div style="background: rgba(0,212,255,0.08); border: 1px solid rgba(0,212,255,0.25); border-radius: 10px; padding: 18px; margin: 10px 0 20px; line-height: 1.9;">
+            <div style="margin-bottom: 8px;">1&#65039;&#8419; افتح بريدك الإلكتروني</div>
+            <div style="margin-bottom: 8px;">2&#65039;&#8419; اضغط على رابط التأكيد داخل الرسالة</div>
+            <div>3&#65039;&#8419; رح ترجع للموقع وحسابك مفعّل</div>
           </div>
 
-          <button class="btn" onclick="handleVerifyEmail()" style="width: 100%;">تحقق من البريد</button>
+          <p style="font-size: 13px; color: var(--text-secondary); text-align: center; margin-bottom: 20px;">
+            ما وصلتك الرسالة؟ تفقّد مجلد البريد المزعج (Spam)
+          </p>
 
-          <div style="text-align: center; margin-top: 15px;">
-            <button class="btn ghost" onclick="handleResendOTP()" style="font-size: 13px;">إعادة إرسال الرمز</button>
-          </div>
-
-          <div style="text-align: center; margin-top: 20px; padding-top: 20px; border-top: 1px solid #ddd;">
-            <button class="btn" onclick="handleSkipVerification()" style="background: #4CAF50; width: 100%;">⏭️ تخطي والمتابعة الآن</button>
-          </div>
+          <button class="btn" onclick="showScreen('screen-login')" style="width: 100%;">تسجيل الدخول</button>
 
           <button class="btn ghost" onclick="showScreen('screen-register')" style="margin-top: 15px;">العودة</button>
         </div>
