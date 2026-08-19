@@ -469,6 +469,20 @@
 
         if (!signInResult.success) {
           console.error('❌ خطأ تسجيل الدخول:', signInResult.error);
+
+          // نميّز حالة "البريد غير مؤكَّد" — بياناته صحيحة بس الحساب مش مفعّل
+          const rawErr = (signInResult.error || '').toString().toLowerCase();
+          if (rawErr.includes('not confirmed') || rawErr.includes('email not confirmed')) {
+            alert(currentLanguage === 'ar'
+              ? '⚠️ حسابك غير مفعّل بعد\n\nافتح بريدك الإلكتروني واضغط رابط التأكيد، بعدها تقدر تسجّل دخول.\n\nما وصلتك الرسالة؟ تفقّد مجلد البريد المزعج (Spam).'
+              : '⚠️ Your account is not activated yet\n\nOpen your email and click the confirmation link, then you can sign in.\n\nDidn\'t get it? Check your Spam folder.');
+
+            const disp = document.getElementById('verifyEmailDisplay');
+            if (disp) disp.textContent = email;
+            showScreen('screen-verify-email');
+            return;
+          }
+
           throw new Error(currentLanguage === 'ar' ? 'البريد الإلكتروني أو كلمة المرور غير صحيحة' : 'Invalid email or password');
         }
 
